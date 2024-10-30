@@ -1,0 +1,44 @@
+name: Deploy to Firebase Hosting Production
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+    env:
+      GOOGLE_APPLICATION_CREDENTIALS: google-application-credentials.json
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install Dependencies
+        run: bun install --frozen-lockfile --no-save
+
+      - name: Angular Build
+        run: bunx ng build --configuration production
+
+      - name: Install Firebase CLI
+        run: bun install -g firebase-tools
+
+      - name: Prepare Google Application Credentials
+        run: echo "${{ secrets.GOOGLE_APPLICATION_CREDENTIALS_BASE64 }}" | base64 --decode > "google-application-credentials.json"
+
+      - name: Use Firebase Production
+        run: firebase use production
+
+      - name: Deploy Firebase Hosting
+        run: firebase deploy --only hosting:$FIREBASE_HOSTING_PROD
+
+      - name: Remove credentials file
+        if: success() || failure()
+        run: rm google-application-credentials.json
